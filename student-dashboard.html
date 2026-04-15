@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>frNtcOda — Student Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+:root {
+  --blue:#0A1F6E; --blue-mid:#1338BE; --blue-glow:#2B6BFF;
+  --red:#D90429; --red-bright:#FF0A35;
+  --white:#FFFFFF; --dark:#060D2B; --dark2:#0D1845; --dark3:#111C50;
+  --surface:rgba(255,255,255,0.03); --border:rgba(255,255,255,0.08);
+  --gray:#8A94B8; --gray2:#4A5378;
+  --green:#22C55E; --amber:#F59E0B;
+  --mono:'DM Mono',monospace; --display:'Syne',sans-serif; --body:'Outfit',sans-serif;
+  --nav-h: 60px;
+  --bottom-h: 64px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow-x:hidden;}
+body{font-family:var(--body);background:var(--dark);color:var(--white);display:flex;flex-direction:column;}
+
+.topbar{
+  height:var(--nav-h);
+  background:rgba(6,13,43,0.95);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(20px);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 1rem 0 1.25rem;
+  position:sticky;top:0;z-index:100;
+  flex-shrink:0;
+}
+.topbar-left{display:flex;align-items:center;gap:.75rem;}
+.logo{font-family:var(--display);font-size:1.3rem;font-weight:800;letter-spacing:-.03em;color:var(--white);text-decoration:none;}
+.logo span{color:var(--red-bright);}
+.topbar-right{display:flex;align-items:center;gap:.5rem;}
+
+.notif-btn{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;width:36px;height:36px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:1rem;position:relative;transition:border-color .2s;
+  flex-shrink:0;
+}
+.notif-btn:hover{border-color:rgba(255,10,53,.4);}
+.notif-dot{position:absolute;top:6px;right:6px;width:7px;height:7px;background:var(--red-bright);border-radius:50%;border:1.5px solid var(--dark2);}
+.notif-dot.hidden{display:none;}
+
+.avatar-btn{
+  width:34px;height:34px;border-radius:50%;
+  background:linear-gradient(135deg,var(--red),var(--red-bright));
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-weight:800;font-size:.8rem;
+  cursor:pointer;flex-shrink:0;border:2px solid rgba(255,10,53,.3);
+}
+
+.scroll-area{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  padding-bottom:calc(var(--bottom-h) + env(safe-area-inset-bottom, 16px));
+}
+
+.panel{display:none;padding:1rem;}
+.panel.active{display:block;animation:fadeIn .25s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;
+  height:var(--bottom-h);
+  background:rgba(6,13,43,0.97);
+  border-top:1px solid var(--border);
+  backdrop-filter:blur(20px);
+  display:flex;align-items:stretch;
+  padding-bottom:env(safe-area-inset-bottom, 0);
+  z-index:100;
+}
+.bnav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;cursor:pointer;transition:color .2s;color:var(--gray2);
+  font-family:var(--mono);font-size:.55rem;letter-spacing:.04em;
+  text-transform:uppercase;border:none;background:none;
+  position:relative;padding-top:2px;
+}
+.bnav-item.active{color:var(--red-bright);}
+.bnav-item:hover{color:var(--gray);}
+.bnav-icon{font-size:1.2rem;line-height:1;}
+.bnav-badge{
+  position:absolute;top:6px;right:calc(50% - 14px);
+  background:var(--red-bright);color:#fff;
+  font-family:var(--mono);font-size:.5rem;
+  padding:.1rem .3rem;border-radius:10px;
+  min-width:16px;text-align:center;
+}
+.bnav-badge.hidden{display:none;}
+
+.welcome-banner{
+  background:linear-gradient(135deg,var(--dark2) 0%,rgba(19,56,190,.2) 60%,var(--dark2) 100%);
+  border:1px solid rgba(43,107,255,.2);
+  border-radius:16px;padding:1.25rem;margin-bottom:1rem;
+  position:relative;overflow:hidden;
+}
+.welcome-banner::after{
+  content:'frNtcOda';position:absolute;right:-10px;top:50%;transform:translateY(-50%);
+  font-family:var(--display);font-size:4rem;font-weight:800;
+  color:rgba(255,255,255,.025);letter-spacing:-.05em;pointer-events:none;
+}
+.welcome-tag{font-family:var(--mono);font-size:.62rem;color:var(--red-bright);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.4rem;}
+.welcome-title{font-family:var(--display);font-size:1.35rem;font-weight:800;letter-spacing:-.03em;margin-bottom:.3rem;}
+.welcome-sub{font-size:.82rem;color:var(--gray);line-height:1.5;}
+.streak-pill{
+  display:inline-flex;align-items:center;gap:.35rem;
+  background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);
+  padding:.25rem .75rem;border-radius:20px;
+  font-family:var(--mono);font-size:.62rem;color:var(--amber);
+  margin-top:.75rem;letter-spacing:.04em;
+}
+
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:.75rem;margin-bottom:1rem;}
+.stat-pill{
+  background:var(--dark2);border:1px solid var(--border);
+  border-radius:12px;padding:1rem;
+  display:flex;align-items:center;gap:.75rem;
+}
+.stat-pill-icon{font-size:1.5rem;flex-shrink:0;}
+.stat-pill-val{font-family:var(--display);font-size:1.4rem;font-weight:800;letter-spacing:-.04em;line-height:1;}
+.stat-pill-label{font-family:var(--mono);font-size:.58rem;color:var(--gray);letter-spacing:.07em;text-transform:uppercase;margin-top:.15rem;}
+
+.sec-label{
+  font-family:var(--display);font-size:.95rem;font-weight:700;
+  letter-spacing:-.02em;margin:1.25rem 0 .75rem;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sec-label a,.sec-label button{
+  font-family:var(--mono);font-size:.62rem;color:var(--blue-glow);
+  background:none;border:none;cursor:pointer;letter-spacing:.04em;
+  text-decoration:none;
+}
+
+.cpc{
+  background:var(--dark2);border:1px solid var(--border);
+  border-radius:14px;overflow:hidden;margin-bottom:.75rem;
+  transition:border-color .2s;
+}
+.cpc:hover{border-color:rgba(255,10,53,.2);}
+.cpc-header{padding:1rem 1.25rem .75rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;}
+.cpc-lang{font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;padding:.2rem .55rem;border-radius:4px;}
+.lang-html{background:rgba(255,107,107,.12);color:#FF6B6B;}
+.lang-css{background:rgba(43,107,255,.12);color:var(--blue-glow);}
+.lang-js{background:rgba(255,214,0,.12);color:#FFD600;}
+.lang-other{background:rgba(43,107,255,.12);color:var(--blue-glow);}
+.cpc-body{padding:.85rem 1.25rem;}
+.cpc-title{font-family:var(--display);font-size:1rem;font-weight:700;margin-bottom:.2rem;letter-spacing:-.02em;}
+.cpc-tutor{font-family:var(--mono);font-size:.65rem;color:var(--gray);margin-bottom:.85rem;}
+.progress-label{display:flex;justify-content:space-between;font-family:var(--mono);font-size:.6rem;color:var(--gray);margin-bottom:.35rem;}
+.progress-track{height:7px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:4px;transition:width 1s ease;}
+.p-complete{background:linear-gradient(90deg,var(--blue-mid),var(--blue-glow));}
+.p-mid{background:linear-gradient(90deg,var(--blue-glow),var(--red-bright));}
+.p-early{background:var(--blue-glow);}
+.cpc-footer{padding:.75rem 1.25rem;border-top:1px solid var(--border);display:flex;gap:.5rem;flex-wrap:wrap;}
+
+.btn{font-family:var(--mono);font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;padding:.5rem 1rem;border-radius:8px;cursor:pointer;transition:all .2s;border:none;display:inline-flex;align-items:center;gap:.35rem;}
+.btn-red{background:var(--red);color:var(--white);box-shadow:0 4px 20px rgba(217,4,41,.25);}
+.btn-red:hover{background:var(--red-bright);}
+.btn-blue{background:var(--blue-mid);color:var(--white);}
+.btn-blue:hover{background:var(--blue-glow);}
+.btn-ghost{background:var(--surface);color:var(--gray);border:1px solid var(--border);}
+.btn-ghost:hover{color:var(--white);border-color:rgba(255,255,255,.2);}
+.btn-sm{padding:.35rem .75rem;font-size:.65rem;}
+.btn-full{width:100%;justify-content:center;}
+
+.empty-state{text-align:center;padding:2.5rem 1rem;color:var(--gray);}
+.empty-state .emoji{font-size:2.5rem;margin-bottom:.75rem;}
+.empty-state p{font-family:var(--mono);font-size:.72rem;letter-spacing:.04em;margin-bottom:1rem;}
+
+.lesson-view{display:flex;flex-direction:column;gap:1rem;}
+.lesson-progress-bar-wrap{background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:1rem 1.25rem;}
+.lesson-progress-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;}
+.lesson-progress-title{font-family:var(--display);font-size:.85rem;font-weight:700;letter-spacing:-.02em;}
+.lesson-progress-count{font-family:var(--mono);font-size:.65rem;color:var(--gray);}
+.lesson-list-item{
+  background:var(--dark2);border:1px solid var(--border);
+  border-radius:12px;padding:.9rem 1.25rem;
+  display:flex;align-items:center;gap:.9rem;cursor:pointer;
+  transition:border-color .2s,background .2s;
+}
+.lesson-list-item:hover{background:rgba(255,255,255,.02);}
+.lesson-list-item.active{border-color:rgba(255,10,53,.3);background:rgba(255,10,53,.04);}
+.lesson-list-item.done{opacity:.65;}
+.litem-check{
+  width:24px;height:24px;border-radius:50%;
+  border:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.65rem;flex-shrink:0;transition:all .2s;
+}
+.litem-check.done{background:var(--green);border-color:var(--green);color:#000;}
+.litem-check.current{border-color:var(--red-bright);background:rgba(255,10,53,.12);color:var(--red-bright);}
+.litem-info{flex:1;min-width:0;}
+.litem-name{font-size:.875rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.litem-type{font-family:var(--mono);font-size:.6rem;color:var(--gray);margin-top:.1rem;}
+
+.lesson-content-card{background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.lcontent-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border);}
+.lcontent-num{font-family:var(--mono);font-size:.6rem;color:var(--red-bright);letter-spacing:.1em;text-transform:uppercase;margin-bottom:.2rem;}
+.lcontent-title{font-family:var(--display);font-size:1.1rem;font-weight:700;letter-spacing:-.02em;}
+.lcontent-body{padding:1.25rem;}
+.notes-content{font-size:.875rem;line-height:1.75;color:rgba(255,255,255,.85);}
+.notes-content h3{font-family:var(--display);font-size:1rem;font-weight:700;margin:1.25rem 0 .5rem;color:var(--white);}
+.notes-content code{font-family:var(--mono);font-size:.8rem;background:rgba(43,107,255,.12);border:1px solid rgba(43,107,255,.2);padding:.15rem .4rem;border-radius:4px;color:var(--blue-glow);}
+.notes-content pre{background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:8px;padding:1rem;overflow-x:auto;margin:1rem 0;}
+.notes-content pre code{background:none;border:none;padding:0;font-size:.8rem;}
+.video-embed{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;margin-bottom:1rem;}
+.video-embed iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none;}
+.resource-link{
+  display:flex;align-items:center;gap:.75rem;
+  background:rgba(43,107,255,.06);border:1px solid rgba(43,107,255,.15);
+  border-radius:8px;padding:.75rem 1rem;margin-top:.5rem;
+  color:var(--blue-glow);text-decoration:none;font-family:var(--mono);font-size:.72rem;
+  transition:background .2s;
+}
+.resource-link:hover{background:rgba(43,107,255,.12);}
+.lcontent-nav{display:flex;gap:.5rem;padding:1rem 1.25rem;border-top:1px solid var(--border);}
+
+.assign-submit-card{background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:1.25rem;}
+.assign-title{font-family:var(--display);font-size:1rem;font-weight:700;margin-bottom:.35rem;}
+.assign-desc{font-size:.855rem;color:var(--gray);line-height:1.6;margin-bottom:1rem;}
+.url-input{
+  width:100%;background:rgba(255,255,255,.04);
+  border:1px solid var(--border);border-radius:8px;
+  padding:.7rem .9rem;font-family:var(--mono);font-size:.8rem;
+  color:var(--white);outline:none;
+  transition:border-color .2s;
+}
+.url-input:focus{border-color:var(--blue-glow);box-shadow:0 0 0 3px rgba(43,107,255,.1);}
+.url-input::placeholder{color:var(--gray2);}
+
+.test-card{background:var(--dark2);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.test-header{padding:1.25rem;border-bottom:1px solid var(--border);text-align:center;}
+.test-q-num{font-family:var(--mono);font-size:.65rem;color:var(--gray);margin-bottom:.5rem;}
+.test-question{font-family:var(--display);font-size:1rem;font-weight:700;line-height:1.4;}
+.test-options{padding:1rem 1.25rem;display:flex;flex-direction:column;gap:.5rem;}
+.test-option{
+  background:rgba(255,255,255,.03);border:1px solid var(--border);
+  border-radius:8px;padding:.85rem 1rem;cursor:pointer;
+  display:flex;align-items:center;gap:.75rem;
+  transition:border-color .2s,background .2s;font-size:.875rem;
+}
+.test-option:hover{border-color:rgba(43,107,255,.3);background:rgba(43,107,255,.06);}
+.test-option.selected{border-color:var(--blue-glow);background:rgba(43,107,255,.12);color:var(--white);}
+.test-option.correct{border-color:var(--green);background:rgba(34,197,94,.1);color:var(--green);}
+.test-option.wrong{border-color:var(--red-bright);background:rgba(255,10,53,.08);color:var(--red-bright);}
+.option-letter{
+  width:24px;height:24px;border-radius:6px;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:.7rem;flex-shrink:0;
+}
+.test-footer{padding:1rem 1.25rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.test-progress-dots{display:flex;gap:.3rem;flex-wrap:wrap;}
+.tdot{width:8px;height:8px;border-radius:50%;background:var(--border);}
+.tdot.answered{background:var(--blue-glow);}
+.tdot.correct{background:var(--green);}
+.tdot.wrong{background:var(--red-bright);}
+
+/* Certificate Card */
+.cert-card{
+  background:linear-gradient(135deg,#0D1845 0%,#1A1050 40%,#0D1845 100%);
+  border:1px solid rgba(43,107,255,.35);
+  border-radius:14px;padding:0;
+  position:relative;overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+  margin-bottom:1.25rem;
+}
+.cert-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:5px;
+  background:linear-gradient(90deg,var(--blue-mid),var(--blue-glow),var(--red-bright));
+  z-index:2;
+}
+.cert-card::after{
+  content:'frNtcOda';position:absolute;bottom:16px;right:16px;
+  font-family:var(--display);font-size:5rem;font-weight:800;
+  color:rgba(255,255,255,.03);letter-spacing:-.05em;line-height:1;
+  pointer-events:none;z-index:0;
+}
+.cert-inner{
+  position:relative;z-index:1;
+  padding:1.5rem 1.75rem 1.25rem;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:.75rem 1.25rem;
+  align-items:start;
+}
+.cert-left{grid-column:1;}
+.cert-right{grid-column:2;display:flex;flex-direction:column;align-items:flex-end;gap:.75rem;}
+.cert-logo{font-family:var(--display);font-size:1rem;font-weight:800;letter-spacing:-.03em;color:var(--white);}
+.cert-logo span{color:var(--red-bright);}
+.cert-headline{font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gray);margin:.6rem 0 .2rem;}
+.cert-recipient{font-family:var(--display);font-size:1.5rem;font-weight:800;letter-spacing:-.03em;color:var(--white);line-height:1.1;margin-bottom:.2rem;}
+.cert-for{font-size:.8rem;color:var(--gray);line-height:1.5;}
+.cert-for strong{color:var(--blue-glow);}
+.cert-divider{grid-column:1/-1;height:1px;background:linear-gradient(90deg,transparent,rgba(43,107,255,.3),transparent);margin:.25rem 0;}
+.cert-meta-row{grid-column:1/-1;display:flex;gap:1.5rem;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;}
+.cert-meta-item{}
+.cert-meta-label{font-family:var(--mono);font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray);margin-bottom:.2rem;}
+.cert-meta-val{font-family:var(--mono);font-size:.72rem;color:var(--white);}
+.cert-qr-box{
+  width:60px;height:60px;background:var(--white);border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.cert-qr-box canvas{width:52px!important;height:52px!important;}
+.cert-actions{display:flex;gap:.5rem;padding:.85rem 1.75rem;border-top:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.15);}
+
+.result-card{background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:2rem 1.5rem;text-align:center;}
+.result-score{font-family:var(--display);font-size:3rem;font-weight:800;letter-spacing:-.05em;line-height:1;}
+.result-label{font-family:var(--mono);font-size:.7rem;color:var(--gray);margin:.4rem 0;}
+.result-verdict{font-family:var(--display);font-size:1.2rem;font-weight:800;margin:.65rem 0 .25rem;}
+.result-sub{font-family:var(--mono);font-size:.68rem;color:var(--gray);line-height:1.65;}
+
+.browse-card{
+  background:var(--dark2);border:1px solid var(--border);
+  border-radius:14px;overflow:hidden;margin-bottom:.75rem;
+  transition:border-color .2s,transform .2s;
+}
+.browse-card:hover{border-color:rgba(43,107,255,.25);transform:translateY(-2px);}
+.browse-card-banner{
+  height:90px;display:flex;align-items:center;justify-content:center;
+  font-size:2.5rem;opacity:.7;
+}
+.bc-html{background:linear-gradient(135deg,rgba(255,107,107,.15),rgba(10,31,110,.8));}
+.bc-css{background:linear-gradient(135deg,rgba(43,107,255,.2),rgba(10,31,110,.8));}
+.bc-js{background:linear-gradient(135deg,rgba(255,214,0,.15),rgba(10,31,110,.8));}
+.bc-other{background:linear-gradient(135deg,rgba(43,107,255,.2),rgba(6,13,43,.9));}
+.browse-card-body{padding:.9rem 1.25rem;}
+.browse-card-title{font-family:var(--display);font-size:.95rem;font-weight:700;margin-bottom:.25rem;}
+.browse-card-meta{font-family:var(--mono);font-size:.62rem;color:var(--gray);margin-bottom:.75rem;}
+.browse-card-price{font-family:var(--display);font-size:1.1rem;font-weight:800;margin-bottom:.75rem;}
+.browse-card-price span{color:var(--red-bright);font-size:.75rem;}
+
+.profile-card{background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:1.5rem;text-align:center;margin-bottom:1rem;}
+.profile-av-lg{
+  width:72px;height:72px;border-radius:50%;
+  background:linear-gradient(135deg,var(--red),var(--red-bright));
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-weight:800;font-size:1.5rem;
+  margin:0 auto .75rem;border:3px solid rgba(255,10,53,.25);
+}
+.profile-name{font-family:var(--display);font-size:1.2rem;font-weight:700;margin-bottom:.2rem;}
+.profile-email{font-family:var(--mono);font-size:.7rem;color:var(--gray);margin-bottom:1rem;}
+.profile-joined{font-family:var(--mono);font-size:.62rem;color:var(--gray2);}
+
+.toast{
+  position:fixed;bottom:calc(var(--bottom-h) + 12px);right:1rem;
+  background:var(--dark2);border:1px solid rgba(43,107,255,.3);
+  border-radius:10px;padding:.7rem 1.1rem;
+  font-family:var(--mono);font-size:.72rem;color:var(--white);
+  z-index:999;transform:translateY(100px);opacity:0;
+  transition:transform .3s ease,opacity .3s;
+  box-shadow:0 20px 60px rgba(0,0,0,.4);max-width:280px;
+}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{border-color:rgba(34,197,94,.4);}
+.toast.error{border-color:rgba(255,10,53,.4);}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px);}
+.modal-overlay.open{display:flex;animation:fadeIn .2s ease;}
+.modal-sheet{
+  background:var(--dark2);border:1px solid rgba(43,107,255,.2);
+  border-radius:20px 20px 0 0;padding:1.5rem;
+  width:100%;max-height:85vh;overflow-y:auto;
+  box-shadow:0 -20px 80px rgba(0,0,0,.5);
+  animation:slideUp .3s ease;
+  padding-bottom:calc(1.5rem + env(safe-area-inset-bottom, 0));
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:translateY(0)}}
+.modal-handle{width:40px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin:0 auto 1.25rem;}
+.modal-title{font-family:var(--display);font-size:1.1rem;font-weight:700;margin-bottom:.2rem;}
+.modal-sub{font-family:var(--mono);font-size:.68rem;color:var(--gray);margin-bottom:1.5rem;}
+.form-group{margin-bottom:1rem;}
+.form-label{display:block;font-family:var(--mono);font-size:.62rem;letter-spacing:.1em;text-transform:uppercase;color:var(--gray);margin-bottom:.4rem;}
+.form-input{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:.7rem .9rem;font-family:var(--body);font-size:.9rem;color:var(--white);outline:none;transition:border-color .2s;}
+.form-input:focus{border-color:var(--blue-glow);box-shadow:0 0 0 3px rgba(43,107,255,.1);}
+.form-input::placeholder{color:var(--gray2);}
+
+.skeleton{background:linear-gradient(90deg,var(--dark2) 25%,rgba(255,255,255,.04) 50%,var(--dark2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:6px;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skel-banner{height:100px;border-radius:14px;margin-bottom:.75rem;}
+
+@media(min-width:768px){
+  :root{--bottom-h:0px;}
+  body{flex-direction:row;}
+  .topbar{position:fixed;top:0;left:0;right:0;padding:0 2rem;}
+  .scroll-area{margin-top:var(--nav-h);margin-left:220px;padding-bottom:2rem;}
+  .panel{padding:2rem;}
+  .bottom-nav{display:none;}
+  .desktop-sidebar{
+    display:flex;flex-direction:column;
+    width:220px;background:var(--dark2);
+    border-right:1px solid var(--border);
+    position:fixed;top:var(--nav-h);left:0;
+    height:calc(100vh - var(--nav-h));
+    overflow-y:auto;z-index:50;
+  }
+  .ds-nav{flex:1;padding:.75rem 0;}
+  .ds-item{
+    display:flex;align-items:center;gap:.75rem;
+    padding:.6rem 1.25rem;font-size:.875rem;color:var(--gray);
+    cursor:pointer;transition:all .2s;border-left:2px solid transparent;
+    background:none;border-right:none;border-top:none;border-bottom:none;
+    width:100%;text-align:left;font-family:var(--body);
+  }
+  .ds-item:hover{color:var(--white);background:rgba(255,255,255,.03);}
+  .ds-item.active{color:var(--white);background:rgba(255,10,53,.07);border-left-color:var(--red-bright);}
+  .ds-icon{font-size:.95rem;width:20px;text-align:center;}
+  .ds-badge{margin-left:auto;background:var(--red-bright);color:#fff;font-family:var(--mono);font-size:.55rem;padding:.1rem .4rem;border-radius:10px;}
+  .ds-badge.hidden{display:none;}
+  .ds-footer{padding:1rem 1.25rem;border-top:1px solid var(--border);}
+  .ds-user{display:flex;align-items:center;gap:.65rem;}
+  .ds-av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--red-bright));display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:800;font-size:.78rem;flex-shrink:0;}
+  .ds-info{flex:1;min-width:0;}
+  .ds-name{font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .ds-role{font-family:var(--mono);font-size:.58rem;color:var(--gray);}
+  .ds-logout{background:none;border:none;cursor:pointer;color:var(--gray);font-size:.85rem;transition:color .2s;flex-shrink:0;}
+  .ds-logout:hover{color:var(--red-bright);}
+  .stats-row{grid-template-columns:repeat(4,1fr);}
+  .browse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;}
+  .browse-grid .browse-card{margin-bottom:0;}
+}
+@media(min-width:1100px){
+  .scroll-area{margin-left:240px;}
+  .desktop-sidebar{width:240px;}
+}
+#auth-loading{position:fixed;inset:0;background:var(--dark);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;}
+#auth-loading .logo-l{font-family:Syne,sans-serif;font-size:2rem;font-weight:800;color:#fff;letter-spacing:-.03em;}
+#auth-loading .logo-l span{color:#FF0A35;}
+#auth-loading .spin{width:28px;height:28px;border:3px solid rgba(255,255,255,.1);border-top-color:#2B6BFF;border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#auth-loading.hide{opacity:0;pointer-events:none;transition:opacity .3s;}
+</style>
+</head>
+<body>
+<div id="auth-loading"><div class="logo-l">frNt<span>c</span>Oda</div><div class="spin"></div></div>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <a href="index.html" class="logo">frNt<span>c</span>Oda</a>
+  </div>
+  <div class="topbar-right">
+    <button class="notif-btn" onclick="showPanel('notifications')" title="Notifications">
+      🔔
+      <span class="notif-dot hidden" id="topbar-notif-dot"></span>
+    </button>
+    <div class="avatar-btn" id="topbar-av" onclick="showPanel('profile')">?</div>
+  </div>
+</header>
+
+<nav class="desktop-sidebar" id="desktop-sidebar" style="display:none;">
+  <div class="ds-nav" id="ds-nav">
+    <button class="ds-item active" data-panel="home" onclick="showPanel('home')"><span class="ds-icon">🏠</span> Home</button>
+    <button class="ds-item" data-panel="mycourses" onclick="showPanel('mycourses')"><span class="ds-icon">📚</span> My Courses <span class="ds-badge hidden" id="ds-badge-courses">0</span></button>
+    <button class="ds-item" data-panel="browse" onclick="showPanel('browse')"><span class="ds-icon">🔍</span> Browse</button>
+    <button class="ds-item" data-panel="certificates" onclick="showPanel('certificates')"><span class="ds-icon">🎓</span> Certificates</button>
+    <button class="ds-item" data-panel="notifications" onclick="showPanel('notifications')"><span class="ds-icon">🔔</span> Notifications <span class="ds-badge hidden" id="ds-badge-notif">0</span></button>
+    <button class="ds-item" data-panel="profile" onclick="showPanel('profile')"><span class="ds-icon">👤</span> Profile</button>
+  </div>
+  <div class="ds-footer">
+    <div class="ds-user">
+      <div class="ds-av" id="ds-av">?</div>
+      <div class="ds-info">
+        <div class="ds-name" id="ds-name">Loading…</div>
+        <div class="ds-role">Student</div>
+      </div>
+      <button class="ds-logout" onclick="doLogout()" title="Logout">⬡</button>
+    </div>
+  </div>
+</nav>
+
+<main class="scroll-area" id="main-scroll">
+
+  <section class="panel active" id="panel-home">
+    <div class="welcome-banner">
+      <div class="welcome-tag">Welcome back</div>
+      <div class="welcome-title" id="home-name">Hey there 👋</div>
+      <div class="welcome-sub">Keep building. Every lesson counts.</div>
+      <div class="streak-pill" id="streak-pill">🔥 <span id="streak-count">0</span> day streak</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-pill"><div class="stat-pill-icon">📚</div><div><div class="stat-pill-val" id="stat-enrolled">—</div><div class="stat-pill-label">Enrolled</div></div></div>
+      <div class="stat-pill"><div class="stat-pill-icon">✅</div><div><div class="stat-pill-val" id="stat-completed">—</div><div class="stat-pill-label">Completed</div></div></div>
+      <div class="stat-pill"><div class="stat-pill-icon">🎓</div><div><div class="stat-pill-val" id="stat-certs">—</div><div class="stat-pill-label">Certs</div></div></div>
+      <div class="stat-pill"><div class="stat-pill-icon">🏆</div><div><div class="stat-pill-val" id="stat-tests">—</div><div class="stat-pill-label">Tests Passed</div></div></div>
+    </div>
+
+    <div class="sec-label">Continue Learning <button onclick="showPanel('mycourses')">View all →</button></div>
+    <div id="home-courses-list"><div class="skel-banner skeleton"></div><div class="skel-banner skeleton"></div></div>
+
+    <div class="sec-label" style="margin-top:1.5rem;">Browse New Courses <button onclick="showPanel('browse')">All courses →</button></div>
+    <div id="home-browse-preview"><div class="skel-banner skeleton"></div></div>
+  </section>
+
+  <section class="panel" id="panel-mycourses">
+    <div class="sec-label" style="margin-top:0;">My Courses</div>
+    <div id="my-courses-list"><div class="skel-banner skeleton"></div><div class="skel-banner skeleton"></div></div>
+  </section>
+
+  <section class="panel" id="panel-lessons">
+    <button class="btn btn-ghost btn-sm" onclick="showPanel('mycourses')" style="margin-bottom:1rem;">← Back to Courses</button>
+    <div class="lesson-view">
+      <div class="lesson-progress-bar-wrap">
+        <div class="lesson-progress-top">
+          <div class="lesson-progress-title" id="lv-course-title">Course</div>
+          <div class="lesson-progress-count" id="lv-progress-txt">0 / 0</div>
+        </div>
+        <div class="progress-track"><div class="progress-fill p-mid" id="lv-progress-fill" style="width:0%"></div></div>
+      </div>
+      <div id="lv-lesson-list"></div>
+      <div id="lv-content-area"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-browse">
+    <div class="sec-label" style="margin-top:0;">Browse Courses</div>
+    <div id="browse-grid" class="browse-grid"><div class="skel-banner skeleton"></div><div class="skel-banner skeleton"></div></div>
+  </section>
+
+  <section class="panel" id="panel-certificates">
+    <div class="sec-label" style="margin-top:0;">My Certificates</div>
+    <div id="certs-list"><div class="empty-state"><div class="emoji">🎓</div><p>No certificates yet</p><button class="btn btn-blue" onclick="showPanel('browse')">Browse Courses</button></div></div>
+  </section>
+
+  <section class="panel" id="panel-notifications">
+    <div class="sec-label" style="margin-top:0;">Notifications</div>
+    <div id="notif-list"><div class="empty-state"><div class="emoji">🔔</div><p>All caught up!</p></div></div>
+  </section>
+
+  <section class="panel" id="panel-profile">
+    <div class="sec-label" style="margin-top:0;">My Profile</div>
+    <div class="profile-card">
+      <div class="profile-av-lg" id="profile-av">?</div>
+      <div class="profile-name" id="profile-name">Loading…</div>
+      <div class="profile-email" id="profile-email">—</div>
+      <div class="profile-joined" id="profile-joined">—</div>
+    </div>
+    <button class="btn btn-ghost btn-full" onclick="doLogout()" style="margin-top:.5rem;">Sign Out</button>
+  </section>
+
+</main>
+
+<nav class="bottom-nav">
+  <button class="bnav-item active" data-panel="home" onclick="showPanel('home')"><span class="bnav-icon">🏠</span>Home</button>
+  <button class="bnav-item" data-panel="mycourses" onclick="showPanel('mycourses')"><span class="bnav-icon">📚</span>Courses<span class="bnav-badge hidden" id="bnav-badge-courses"></span></button>
+  <button class="bnav-item" data-panel="browse" onclick="showPanel('browse')"><span class="bnav-icon">🔍</span>Browse</button>
+  <button class="bnav-item" data-panel="certificates" onclick="showPanel('certificates')"><span class="bnav-icon">🎓</span>Certs</button>
+  <button class="bnav-item" data-panel="profile" onclick="showPanel('profile')"><span class="bnav-icon">👤</span>Profile</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="pay-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="pay-modal-title">Enroll in Course</div>
+    <div class="modal-sub" id="pay-modal-sub">—</div>
+    <div id="pay-modal-body"></div>
+  </div>
+</div>
+
+<script>
+window.PAYSTACK_PUBLIC_KEY = "pk_test_f5cdf0d0364d836089bf708636c85614317cb583";
+
+(function(){
+  window.showPanel = function(id, data){
+    window._pendingPanel = {id:id, data:data};
+    document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+    document.querySelectorAll('.bnav-item,.ds-item').forEach(function(b){b.classList.remove('active');});
+    var panel = document.getElementById('panel-'+id);
+    if(panel) panel.classList.add('active');
+    document.querySelectorAll('[data-panel="'+id+'"]').forEach(function(b){b.classList.add('active');});
+    var scroll = document.getElementById('main-scroll');
+    if(scroll) scroll.scrollTo(0,0);
+  };
+  window.doLogout = function(){ window.location.href = 'auth.html'; };
+  window.closeModal = function(id){ var m=document.getElementById(id); if(m) m.classList.remove('open'); };
+  window.openModal = function(id){ var m=document.getElementById(id); if(m) m.classList.add('open'); };
+  window.closePayModal = function(){ var m=document.getElementById('pay-modal'); if(m) m.classList.remove('open'); };
+  window.showToast = function(msg,type){
+    var t=document.getElementById('toast'); if(!t) return;
+    t.textContent=msg; t.className='toast show '+(type||'');
+    clearTimeout(t._to); t._to=setTimeout(function(){t.classList.remove('show');},3200);
+  };
+  function checkSidebar(){
+    var s=document.getElementById('desktop-sidebar');
+    if(s) s.style.display = window.innerWidth>=768 ? 'flex' : 'none';
+  }
+  window.addEventListener('resize', checkSidebar);
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', checkSidebar);
+  else checkSidebar();
+})();
+</script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDocs, getDoc, addDoc, updateDoc, setDoc, serverTimestamp, query, where, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+window.addEventListener('error', function(e) { console.error('Dashboard error:', e.message); });
+
+try {
+const app = initializeApp({
+  apiKey:"AIzaSyATtx9-URlB2-ZKc_4eXIlr8lQxg_dlJAQ",
+  authDomain:"frnt-coda.firebaseapp.com",projectId:"frnt-coda",
+  storageBucket:"frnt-coda.firebasestorage.app",
+  messagingSenderId:"564512970305",
+  appId:"1:564512970305:web:d7fd66bdcf6b8268d4d8c0"
+});
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let currentUser = null, currentProfile = null;
+let enrollments = [], allCourses = [], certs = [];
+let activeCourseId = null, activeLessons = [], activeLessonIdx = 0;
+let testAnswers = {}, testData = null;
+let assignData = null, assignAnswers = {};
+let examData = null, examAnswers = {};
+
+window.showPanel = function(panelId, data) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.ds-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + panelId)?.classList.add('active');
+  document.querySelectorAll(`[data-panel="${panelId}"]`).forEach(b => b.classList.add('active'));
+  document.getElementById('main-scroll')?.scrollTo(0, 0);
+  if (panelId === 'mycourses') loadMyCourses();
+  if (panelId === 'browse') loadBrowse();
+  if (panelId === 'certificates') loadCerts();
+  if (panelId === 'notifications') loadNotifications();
+  if (panelId === 'lessons' && data) openCourse(data.courseId, data.enrollmentId);
+};
+
+onAuthStateChanged(auth, async (user) => {
+  const loader = document.getElementById('auth-loading');
+  if (!user) { setTimeout(() => { window.location.href = 'auth.html'; }, 500); return; }
+  currentUser = user;
+  const snap = await getDoc(doc(db, 'users', currentUser.uid));
+  if (!snap.exists()) { await signOut(auth); window.location.href = 'auth.html'; return; }
+  currentProfile = snap.data();
+  if (currentProfile.role !== 'student') { await signOut(auth); window.location.href = 'auth.html'; return; }
+  if (currentProfile.status === 'suspended') { alert('Your account has been suspended.'); await signOut(auth); window.location.href = 'auth.html'; return; }
+  if (loader) { loader.classList.add('hide'); setTimeout(() => loader.remove(), 350); }
+  loadProfileUI();
+  loadHomeData();
+});
+
+async function loadProfileUI() {
+  const fn = currentProfile.fullName || currentProfile.firstName || 'Student';
+  const initials = fn.charAt(0).toUpperCase();
+  document.getElementById('topbar-av').textContent = initials;
+  document.getElementById('home-name').textContent = `Hey ${fn} 👋`;
+  document.getElementById('ds-av').textContent = initials;
+  document.getElementById('ds-name').textContent = fn;
+  document.getElementById('profile-av').textContent = initials;
+  document.getElementById('profile-name').textContent = currentProfile.fullName || fn;
+  document.getElementById('profile-email').textContent = currentProfile.email || currentUser.email;
+  const joined = currentProfile.createdAt?.toDate?.();
+  document.getElementById('profile-joined').textContent = joined ? `Joined ${joined.toLocaleDateString('en-NG',{month:'long',year:'numeric'})}` : '';
+}
+
+async function loadHomeData() {
+  const enSnap = await getDocs(query(collection(db,'enrollments'), where('studentId','==',currentUser.uid)));
+  enrollments = enSnap.docs.map(d => ({id:d.id,...d.data()}));
+  const activeEnrollments = enrollments.filter(e => e.status === 'active');
+  const completedEnrollments = enrollments.filter(e => e.progress >= 100);
+  const cSnap = await getDocs(query(collection(db,'certificates'), where('studentId','==',currentUser.uid)));
+  certs = cSnap.docs.map(d => ({id:d.id,...d.data()}));
+  const tSnap = await getDocs(query(collection(db,'testResults'), where('studentId','==',currentUser.uid), where('passed','==',true)));
+  document.getElementById('stat-enrolled').textContent = activeEnrollments.length;
+  document.getElementById('stat-completed').textContent = completedEnrollments.length;
+  document.getElementById('stat-certs').textContent = certs.length;
+  document.getElementById('stat-tests').textContent = tSnap.docs.length;
+  document.getElementById('streak-count').textContent = currentProfile.streak || 0;
+  const badgeVal = activeEnrollments.length;
+  ['bnav-badge-courses','ds-badge-courses'].forEach(id => { const el = document.getElementById(id); if (el) { el.textContent = badgeVal; el.classList.toggle('hidden', badgeVal === 0); }});
+  const coursesEl = document.getElementById('home-courses-list');
+  if (activeEnrollments.length === 0) coursesEl.innerHTML = `<div class="empty-state"><div class="emoji">📚</div><p>No enrolled courses yet</p><button class="btn btn-blue" onclick="showPanel('browse')">Browse Courses</button></div>`;
+  else await renderEnrollmentCards(coursesEl, activeEnrollments.slice(0,2));
+  await loadBrowsePreview();
+}
+
+async function renderEnrollmentCards(container, enrollmentList) {
+  const LANG_ICONS = {Python:"🐍",JavaScript:"⚡",Rust:"🦀",Go:"🐹",Java:"☕","C++":"⚙️",Kotlin:"🎯",PHP:"🐘",Swift:"🦅",Solidity:"🔷",HTML:"🌐",CSS:"🎨"};
+  const langIcon = l => LANG_ICONS[l] || "💻";
+  const langClass = l => l==='HTML'?'lang-html':l==='CSS'?'lang-css':l==='JavaScript'?'lang-js':'lang-other';
+  const fillClass = p => p>=80?'p-complete':p>=40?'p-mid':'p-early';
+  const cards = await Promise.all(enrollmentList.map(async en => {
+    const cSnap = await getDoc(doc(db,'courses',en.courseId));
+    if (!cSnap.exists()) return '';
+    const c = cSnap.data();
+    const total = (c.lessons||[]).length;
+    const done = (en.completedLessons||[]).length;
+    const pct = total > 0 ? Math.round((done/total)*100) : en.progress || 0;
+    return `<div class="cpc"><div class="cpc-header"><span class="cpc-lang ${langClass(c.language||'HTML')}">${c.language||'HTML'}</span><span style="font-family:var(--mono);font-size:.6rem;color:var(--gray);">${pct}% done</span></div><div class="cpc-body"><div class="cpc-title">${c.title}</div><div class="cpc-tutor">${c.tutorName || 'frNtcOda Instructor'}</div><div class="progress-label"><span>${done} of ${total} lessons</span></div><div class="progress-track"><div class="progress-fill ${fillClass(pct)}" style="width:${pct}%"></div></div></div><div class="cpc-footer">${pct>=100?`<button class="btn btn-red btn-sm btn-full" onclick="checkCertificate('${en.courseId}','${c.title.replace(/'/g,"\\'")}',${c.certFee||2500})">Get Certificate 🎓</button>`:`<button class="btn btn-red btn-sm" onclick="showPanel('lessons',{courseId:'${en.courseId}',enrollmentId:'${en.id}'})">Continue →</button>`}</div></div>`;
+  }));
+  container.innerHTML = cards.join('');
+}
+
+async function loadMyCourses() {
+  const list = document.getElementById('my-courses-list');
+  list.innerHTML = '<div class="skel-banner skeleton"></div>';
+  const activeEnrollments = enrollments.filter(e => e.status === 'active');
+  if (activeEnrollments.length === 0) { list.innerHTML = `<div class="empty-state"><div class="emoji">📚</div><p>No enrolled courses yet</p><button class="btn btn-blue" onclick="showPanel('browse')">Browse Courses</button></div>`; return; }
+  await renderEnrollmentCards(list, activeEnrollments);
+}
+
+async function loadBrowsePreview() {
+  try {
+    const snap = await getDocs(query(collection(db,'courses'), where('status','==','live')));
+    allCourses = snap.docs.map(d => ({id:d.id,...d.data()}));
+    const previewEl = document.getElementById('home-browse-preview');
+    if (allCourses.length === 0) { previewEl.innerHTML = '<p style="font-family:var(--mono);font-size:.75rem;color:var(--gray);">No courses available yet.</p>'; return; }
+    const enrolled = new Set(enrollments.map(e => e.courseId));
+    const available = allCourses.filter(c => !enrolled.has(c.id)).slice(0,1);
+    previewEl.innerHTML = available.map(c => browsCardHTML(c)).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function loadBrowse() {
+  const grid = document.getElementById('browse-grid');
+  grid.innerHTML = '<div class="skel-banner skeleton"></div>';
+  try {
+    if (allCourses.length === 0) { const snap = await getDocs(query(collection(db,'courses'), where('status','==','live'))); allCourses = snap.docs.map(d => ({id:d.id,...d.data()})); }
+    if (allCourses.length === 0) { grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="emoji">📭</div><p>No courses available yet</p></div>`; return; }
+    grid.innerHTML = allCourses.map(c => browsCardHTML(c)).join('');
+  } catch(e) { grid.innerHTML = '<p style="color:var(--gray);font-family:var(--mono);font-size:.75rem;">Could not load courses.</p>'; }
+}
+
+function browsCardHTML(c) {
+  const lang = c.language || 'HTML';
+  const LANG_ICONS = {Python:"🐍",JavaScript:"⚡",Rust:"🦀",Go:"🐹",Java:"☕","C++":"⚙️",Kotlin:"🎯",PHP:"🐘",Swift:"🦅",Solidity:"🔷",HTML:"🌐",CSS:"🎨"};
+  const icon = LANG_ICONS[lang] || "💻";
+  const bgClass = lang==='HTML'?'bc-html':lang==='CSS'?'bc-css':lang==='JavaScript'?'bc-js':'bc-other';
+  const enrolled = enrollments.some(e => e.courseId === c.id);
+  const isFree = c.price === 0 || c.isFree === true;
+  return `<div class="browse-card"><div class="browse-card-banner ${bgClass}">${icon}</div><div class="browse-card-body"><div class="browse-card-title">${c.title}</div><div class="browse-card-meta">${(c.lessons||[]).length} lessons · ${c.tutorName||'frNtcOda'}</div><div class="browse-card-price">${isFree?'FREE':`<span>₦</span>${(c.price||0).toLocaleString()}`}</div>${enrolled?`<button class="btn btn-ghost btn-sm btn-full" onclick="showPanel('mycourses')">Already Enrolled ✓</button>`:`<button class="btn btn-red btn-full" onclick="enrollCourse('${c.id}','${c.title.replace(/'/g,"\\'")}',${c.price||0})">${isFree?'Enroll Free':'Enroll Now'}</button>`}</div></div>`;
+}
+
+// PAYSTACK ENROLLMENT
+window.enrollCourse = async function(courseId, courseName, price) {
+  if (!currentUser || !currentProfile) { window.location.href='auth.html'; return; }
+  const already = enrollments.find(e => e.courseId === courseId && e.status === 'active');
+  if (already) { showToast('Already enrolled!', 'success'); showPanel('mycourses'); return; }
+  if (price <= 0) { enrollFree(courseId, courseName); return; }
+  const courseSnap = await getDoc(doc(db, 'courses', courseId));
+  const courseData = courseSnap.data();
+  const tutorId = courseData?.tutorId;
+  let tutorPay = {};
+  if (tutorId) { const tSnap = await getDoc(doc(db, 'users', tutorId)); if (tSnap.exists()) tutorPay = { ...tSnap.data(), uid: tutorId }; }
+  await loadPaystack();
+  const txRef = `frntcoda-enroll-${courseId}-${Date.now()}`;
+  const handler = window.PaystackPop.setup({
+    key: window.PAYSTACK_PUBLIC_KEY || 'pk_test_f5cdf0d0364d836089bf708636c85614317cb583',
+    email: currentProfile.email || currentUser.email,
+    amount: price * 100,
+    currency: 'NGN',
+    ref: txRef,
+    metadata: { courseId, courseName, studentId: currentUser.uid },
+    callback: async function(res) {
+      if (res.status === 'success') {
+        showToast('Payment successful! Enrolling...', 'success');
+        const enrollRef = await addDoc(collection(db, 'enrollments'), { studentId: currentUser.uid, courseId, status: 'active', progress: 0, completedLessons: [], enrolledAt: serverTimestamp(), paymentRef: res.reference });
+        await updateDoc(doc(db, 'courses', courseId), { studentsCount: increment(1) });
+        const platformShare = Math.round(price * 0.07);
+        const tutorShare = price - platformShare;
+        await addDoc(collection(db, 'payments'), { studentId: currentUser.uid, studentName: currentProfile.fullName || 'Student', tutorId: tutorPay.uid || null, courseId, courseTitle: courseName, type: 'enrollment', amount: price, platformShare, tutorShare, paystackRef: res.reference, status: 'success', paidAt: serverTimestamp(), tutorPaid: false });
+        enrollments.push({ id: enrollRef.id, courseId, status: 'active', progress: 0, completedLessons: [] });
+        showToast(`Enrolled in ${courseName}! 🎉`, 'success');
+        showPanel('mycourses'); loadMyCourses();
+      } else { showToast('Payment was not completed.', 'error'); }
+    },
+    onClose: function() { showToast('Payment cancelled.', 'warning'); }
+  });
+  if (tutorPay.paystackSubaccountCode) { handler.subaccount = tutorPay.paystackSubaccountCode; handler.bearer = 'account'; handler.transaction_charge = Math.floor(price * 0.07 * 100); }
+  handler.openIframe();
+};
+
+async function enrollFree(courseId, courseName) {
+  const already = enrollments.find(e => e.courseId === courseId && e.status === 'active');
+  if (already) { showToast('Already enrolled!', 'success'); return; }
+  const ref = await addDoc(collection(db,'enrollments'), { studentId: currentUser.uid, courseId, status:'active', progress:0, completedLessons:[], enrolledAt:serverTimestamp() });
+  const cSnap = await getDoc(doc(db,'courses',courseId));
+  if (cSnap.exists()) await updateDoc(doc(db,'courses',courseId), { studentsCount: (cSnap.data().studentsCount||0)+1 });
+  showToast(`Enrolled in ${courseName} 🎉`,'success');
+  enrollments = [...enrollments, { id: ref.id, courseId, status:'active', progress:0, completedLessons:[] }];
+  loadMyCourses(); loadBrowse();
+}
+
+function loadPaystack() { return new Promise(res => { if (window.PaystackPop) { res(); return; } const s = document.createElement('script'); s.src = 'https://js.paystack.co/v1/inline.js'; s.onload = res; document.body.appendChild(s); }); }
+
+// CERTIFICATES
+async function loadCerts() {
+  const list = document.getElementById('certs-list');
+  const snap = await getDocs(query(collection(db,'certificates'), where('studentId','==',currentUser.uid)));
+  certs = snap.docs.map(d => ({id:d.id,...d.data()}));
+  if (certs.length === 0) { list.innerHTML = `<div class="empty-state"><div class="emoji">🎓</div><p>No certificates yet — complete a course to earn one</p><button class="btn btn-blue" onclick="showPanel('mycourses')">View My Courses</button></div>`; return; }
+  list.innerHTML = certs.map(c => {
+    const dateStr = c.issuedAt?.toDate ? c.issuedAt.toDate().toLocaleDateString('en-NG',{day:'numeric',month:'long',year:'numeric'}) : '—';
+    const name = c.studentName || currentProfile?.fullName || 'Student';
+    const tutor = c.tutorName || 'frNtcOda Instructor';
+    if (c.locked && !c.paid) {
+      return `<div class="cert-card" style="position:relative;overflow:hidden;"><div style="filter:blur(4px);pointer-events:none;user-select:none;opacity:.55;"><div class="cert-inner"><div class="cert-left"><div class="cert-logo">frNt<span>c</span>Oda</div><div class="cert-headline">Certificate of Completion</div><div class="cert-recipient">${name}</div><div class="cert-for">Has successfully completed <strong>${c.courseName}</strong></div></div></div></div><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,13,43,.7);border-radius:14px;padding:1.5rem;text-align:center;"><div style="font-size:2rem;margin-bottom:.6rem;">🔒</div><div style="font-family:var(--display);font-size:1rem;font-weight:800;margin-bottom:.3rem;">Certificate Ready</div><div style="font-family:var(--mono);font-size:.7rem;color:var(--gray);margin-bottom:1rem;">Pay the fee to unlock</div><button class="btn btn-red" onclick="payCert('${c.courseId}','${c.courseName.replace(/'/g,"\\'")}',${c.certFee})">Pay ₦${(c.certFee||0).toLocaleString()}</button></div></div>`;
+    }
+    return `<div class="cert-card" id="cert-card-${c.certId}"><div class="cert-inner"><div class="cert-left"><div class="cert-logo">frNt<span>c</span>Oda</div><div class="cert-headline">Certificate of Completion</div><div class="cert-recipient">${name}</div><div class="cert-for">Has successfully completed <strong>${c.courseName}</strong></div></div><div class="cert-right"><div class="cert-qr-box" id="qr-${c.certId}"></div></div><div class="cert-divider"></div><div class="cert-meta-row"><div class="cert-meta-item"><div class="cert-meta-label">Instructor</div><div class="cert-meta-val">${tutor}</div></div><div class="cert-meta-item"><div class="cert-meta-label">Date</div><div class="cert-meta-val">${dateStr}</div></div><div class="cert-meta-item"><div class="cert-meta-label">Certificate ID</div><div class="cert-meta-val" style="color:var(--blue-glow);">${c.certId}</div></div></div></div><div class="cert-actions"><button class="btn btn-red btn-sm" onclick="downloadCert('${c.certId}')">Download PDF ↓</button></div></div>`;
+  }).join('');
+  setTimeout(() => { certs.filter(c => !c.locked).forEach(c => { const qr = document.getElementById(`qr-${c.certId}`); if (qr && window.QRCode) new QRCode(qr, { text: `https://frnt-coda.web.app/verify.html?id=${c.certId}`, width: 60, height: 60, colorDark: "#000", colorLight: "#fff" }); }); }, 100);
+}
+
+window.checkCertificate = async function(courseId, courseName, certFee) {
+  if (!certs.find(c => c.courseId === courseId)) await autoIssueCert(courseId);
+  showPanel('certificates');
+};
+
+window.payCert = async function(courseId, courseName, certFee) {
+  const courseSnap = await getDoc(doc(db,'courses',courseId));
+  const tutorId = courseSnap.exists() ? courseSnap.data().tutorId : null;
+  let tutorPay = {};
+  if (tutorId) { const tSnap = await getDoc(doc(db,'users',tutorId)); if (tSnap.exists()) tutorPay = { ...tSnap.data(), uid: tutorId }; }
+  await loadPaystack();
+  const handler = window.PaystackPop.setup({
+    key: window.PAYSTACK_PUBLIC_KEY,
+    email: currentProfile.email || currentUser.email,
+    amount: certFee * 100,
+    currency: 'NGN',
+    ref: `frntcoda-cert-${courseId}-${Date.now()}`,
+    callback: async function(res) {
+      if (res.status === 'success') {
+        const existing = certs.find(c => c.courseId === courseId);
+        if (existing) { await updateDoc(doc(db,'certificates', existing.certId), { paid: true, locked: false, paidAt: serverTimestamp() }); }
+        await addDoc(collection(db,'payments'), { studentId: currentUser.uid, tutorId: tutorPay.uid, courseId, type: 'certificate', amount: certFee, platformShare: Math.round(certFee*0.5), tutorShare: Math.round(certFee*0.5), paystackRef: res.reference, status: 'success', paidAt: serverTimestamp() });
+        showToast('Certificate unlocked! 🎓','success'); loadCerts();
+      }
+    },
+    onClose: function() {}
+  });
+  if (tutorPay.paystackSubaccountCode) { handler.subaccount = tutorPay.paystackSubaccountCode; handler.bearer = 'account'; }
+  handler.openIframe();
+};
+
+window.downloadCert = async function(certId) {
+  const card = document.getElementById('cert-card-' + certId);
+  if (!card) return;
+  showToast('Preparing PDF…', '');
+  try {
+    if (!window.html2canvas) await new Promise((res,rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
+    if (!window.jspdf) await new Promise((res,rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; s.onload = res; s.onerror = rej; document.body.appendChild(s); });
+    const canvas = await window.html2canvas(card, { scale: 3, backgroundColor: '#0D1845' });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const imgW = 277, imgH = (canvas.height * 277) / canvas.width;
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 10, 10, imgW, imgH);
+    pdf.save(`frNtcOda-Certificate-${certId}.pdf`);
+    showToast('Certificate downloaded! 🎓', 'success');
+  } catch(e) { showToast('Download failed', 'error'); }
+};
+
+async function autoIssueCert(courseId) {
+  if (certs.find(c => c.courseId === courseId)) return;
+  const cSnap = await getDoc(doc(db, 'courses', courseId));
+  if (!cSnap.exists()) return;
+  const course = cSnap.data();
+  const certFee = course.certFee || 0;
+  const certId = `FNT-${courseId.slice(0,4).toUpperCase()}-${Date.now()}`;
+  await setDoc(doc(db, 'certificates', certId), { certId, studentId: currentUser.uid, studentName: currentProfile.fullName || 'Student', tutorName: course.tutorName || 'frNtcOda Instructor', courseId, courseName: course.title, certFee, locked: certFee > 0, paid: certFee === 0, issuedAt: serverTimestamp() });
+  certs.push({ certId, courseId, courseName: course.title, certFee, locked: certFee > 0, paid: certFee === 0 });
+}
+
+// LESSONS, TESTS, ASSIGNMENTS (abbreviated - same as before but functional)
+window.openCourse = async function(courseId, enrollmentId) {
+  showPanel('lessons');
+  activeCourseId = courseId;
+  document.getElementById('lv-course-title').textContent = 'Loading…';
+  try {
+    const [cSnap, enSnap] = await Promise.all([getDoc(doc(db,'courses',courseId)), getDoc(doc(db,'enrollments',enrollmentId))]);
+    if (!cSnap.exists()) { showToast('Course not found','error'); showPanel('mycourses'); return; }
+    const course = cSnap.data();
+    const enrollment = enSnap.exists() ? enSnap.data() : {};
+    activeLessons = course.lessons || [];
+    const completedIds = new Set(enrollment.completedLessons || []);
+    document.getElementById('lv-course-title').textContent = course.title;
+    document.getElementById('lv-progress-txt').textContent = `${completedIds.size} / ${activeLessons.length}`;
+    document.getElementById('lv-progress-fill').style.width = activeLessons.length ? `${Math.round((completedIds.size/activeLessons.length)*100)}%` : '0%';
+    let startIdx = activeLessons.findIndex((_,i) => !completedIds.has(String(i)));
+    if (startIdx === -1) startIdx = 0;
+    activeLessonIdx = startIdx;
+    renderLessonList(completedIds, enrollmentId, courseId);
+    renderLessonContent(activeLessonIdx, enrollmentId, completedIds, course);
+  } catch(e) { showToast('Could not load course','error'); }
+};
+
+function renderLessonList(completedIds, enrollmentId, courseId) {
+  const list = document.getElementById('lv-lesson-list');
+  list.innerHTML = activeLessons.map((l, i) => {
+    const isDone = completedIds.has(String(i));
+    const icon = l.type==='Assignment'?'📝':l.type==='Final Test'?'🧪':l.type==='Exam'?'📋':'📖';
+    return `<div class="lesson-list-item ${i===activeLessonIdx?'active':''} ${isDone?'done':''}" onclick="setActiveLesson(${i},'${enrollmentId}','${courseId}')"><div class="litem-check ${isDone?'done':i===activeLessonIdx?'current':''}">${isDone?'✓':i===activeLessonIdx?'▶':icon}</div><div class="litem-info"><div class="litem-name">${l.title||'Lesson '+(i+1)}</div><div class="litem-type">${l.type||'Lesson'}</div></div></div>`;
+  }).join('');
+}
+
+window.setActiveLesson = async function(idx, enrollmentId, courseId) {
+  activeLessonIdx = idx;
+  const cSnap = await getDoc(doc(db,'courses',courseId));
+  const course = cSnap.data();
+  const enSnap = await getDoc(doc(db,'enrollments',enrollmentId));
+  const enrollment = enSnap.data();
+  const completedIds = new Set(enrollment.completedLessons || []);
+  renderLessonList(completedIds, enrollmentId, courseId);
+  renderLessonContent(idx, enrollmentId, completedIds, course);
+};
+
+function renderLessonContent(idx, enrollmentId, completedIds, course) {
+  const lesson = activeLessons[idx];
+  if (!lesson) return;
+  const area = document.getElementById('lv-content-area');
+  const isDone = completedIds.has(String(idx));
+  if (lesson.type === 'Lesson' || !lesson.type) {
+    area.innerHTML = `<div class="lesson-content-card"><div class="lcontent-header"><div class="lcontent-num">Lesson ${idx+1}</div><div class="lcontent-title">${lesson.title||'Lesson'}</div></div><div class="lcontent-body"><div class="notes-content">${(lesson.notes||'<em>No content yet.</em>').replace(/\n/g,'<br>')}</div></div><div class="lcontent-nav">${idx>0?`<button class="btn btn-ghost btn-sm" onclick="setActiveLesson(${idx-1},'${enrollmentId}','${course.id}')">← Prev</button>`:''}${isDone?`<button class="btn btn-ghost btn-sm" style="margin-left:auto;color:var(--green);">✓ Completed</button>`:`<button class="btn btn-red btn-sm" style="margin-left:auto;" onclick="markLessonDone(${idx},'${enrollmentId}','${course.id}')">Mark Done ✓</button>`}${idx<activeLessons.length-1?`<button class="btn btn-blue btn-sm" onclick="setActiveLesson(${idx+1},'${enrollmentId}','${course.id}')">Next →</button>`:''}</div></div>`;
+  } else {
+    area.innerHTML = `<div class="test-card"><div class="test-header"><div class="test-q-num">${lesson.type==='Assignment'?'📝':lesson.type==='Exam'?'📋':'🧪'} ${lesson.type}</div><div class="test-question">${lesson.title}</div></div><div style="padding:1.25rem;text-align:center;">${isDone?'<div style="color:var(--green);">✓ Completed</div>':`<button class="btn btn-red btn-full" onclick="markLessonDone(${idx},'${enrollmentId}','${course.id}')">Mark as Done</button>`}</div></div>`;
+  }
+}
+
+window.markLessonDone = async function(idx, enrollmentId, courseId) {
+  const enRef = doc(db,'enrollments',enrollmentId);
+  const enSnap = await getDoc(enRef);
+  const data = enSnap.data();
+  const completed = new Set(data.completedLessons || []);
+  completed.add(String(idx));
+  const pct = activeLessons.length ? Math.round((completed.size/activeLessons.length)*100) : 0;
+  await updateDoc(enRef, { completedLessons: [...completed], progress: pct });
+  showToast('Lesson completed! 🎉','success');
+  if (pct >= 100) await autoIssueCert(courseId);
+  const cSnap = await getDoc(doc(db,'courses',courseId));
+  renderLessonList(completed, enrollmentId, courseId);
+  renderLessonContent(idx, enrollmentId, completed, cSnap.data());
+  document.getElementById('lv-progress-txt').textContent = `${completed.size} / ${activeLessons.length}`;
+  document.getElementById('lv-progress-fill').style.width = `${pct}%`;
+};
+
+async function loadNotifications() {
+  const list = document.getElementById('notif-list');
+  try {
+    const snap = await getDocs(query(collection(db,'notifications'), where('userId','==',currentUser.uid), where('read','==',false)));
+    const notifs = snap.docs.map(d => ({id:d.id,...d.data()}));
+    if (notifs.length === 0) list.innerHTML = `<div class="empty-state"><div class="emoji">🔔</div><p>All caught up!</p></div>`;
+    else list.innerHTML = notifs.map(n => `<div class="cpc" style="padding:1rem;" onclick="markRead('${n.id}',this)"><div>${n.title||'Notification'}</div><div style="font-size:.82rem;color:var(--gray);">${n.body||''}</div></div>`).join('');
+    document.getElementById('topbar-notif-dot')?.classList.toggle('hidden', notifs.length===0);
+  } catch(e) {}
+}
+
+window.markRead = async function(notifId, el) { await updateDoc(doc(db,'notifications',notifId), { read: true }); el.style.opacity = '0.4'; };
+
+window.showToast = function(msg, type='') { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show ' + type; clearTimeout(t._to); t._to = setTimeout(() => t.classList.remove('show'), 3200); };
+window.doLogout = async function() { await signOut(auth); window.location.href = 'auth.html'; };
+document.getElementById('pay-modal').addEventListener('click', function(e) { if (e.target === this) closePayModal(); });
+
+} catch(e) { console.error('Module error:', e); document.getElementById('toast').textContent = 'Error: ' + e.message; document.getElementById('toast').className = 'toast show error'; }
+</script>
+</body>
+</html>
