@@ -1974,7 +1974,8 @@ window.payEnroll = async function(courseId, courseName, price) {
     showToast('Payment gateway failed to load. Check your connection.', 'error');
     return;
   }
-  closePayModal();
+  // NOTE: closePayModal() moved INSIDE callback/onClose — calling it here
+  // before openIframe() was blocking the Paystack popup on mobile/some browsers.
 
   const psConfig = {
     key: window.PAYSTACK_PUBLIC_KEY || 'pk_test_f5cdf0d0364d836089bf708636c85614317cb583',
@@ -1991,6 +1992,7 @@ window.payEnroll = async function(courseId, courseName, price) {
     callback: function(res) {
       // Plain function wrapper — Paystack v1 rejects async callbacks
       (async function() {
+        closePayModal();
         if (res.status === 'success') {
           await enrollFree(courseId, courseName);
           // Stamp the enrollment as paid so openCourse can verify payment
@@ -2008,10 +2010,12 @@ window.payEnroll = async function(courseId, courseName, price) {
             paystackRef: res.reference,
             status:'success', paidAt: serverTimestamp()
           });
+          showToast(`Enrolled in ${courseName} 🎉`, 'success');
         }
       })();
     },
     onClose: function() {
+      closePayModal();
       showToast('Payment cancelled. You have not been enrolled.', '');
     }
   };
@@ -2068,7 +2072,8 @@ window.payCert = async function(courseId, courseName, certFee) {
     showToast('Payment gateway failed to load. Check your connection.', 'error');
     return;
   }
-  closePayModal();
+  // NOTE: closePayModal() moved INSIDE callback/onClose — calling it here
+  // before openIframe() was blocking the Paystack popup on mobile/some browsers.
   const psConfig = {
     key: window.PAYSTACK_PUBLIC_KEY || 'pk_test_f5cdf0d0364d836089bf708636c85614317cb583',
     email: customer.email,
@@ -2078,12 +2083,14 @@ window.payCert = async function(courseId, courseName, certFee) {
     label: 'frNtcOda Certificate Unlock',
     callback: function(res) {
       (async function() {
+        closePayModal();
         if (res.status === 'success') {
           await unlockCert(courseId, courseName, certFee, tutorPay, res.reference);
         }
       })();
     },
     onClose: function() {
+      closePayModal();
       showToast('Payment cancelled. Certificate not unlocked.', '');
     }
   };
