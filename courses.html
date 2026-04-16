@@ -243,13 +243,13 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 5%;height:68px;dis
 
 <section class="courses-section">
   <div class="courses-count" id="courses-count">Showing <span id="count-num">0</span> courses</div>
-  <div class="courses-grid" id="courses-grid">
-    <div class="empty-state" id="no-results" style="display:none;grid-column:1/-1;">
-      <div class="big">🔍</div>
-      <h3>No courses found</h3>
-      <p>Try adjusting your search or filter</p>
-    </div>
+  <div id="loading-state" style="text-align:center;padding:4rem 2rem;color:var(--gray);"><div style="font-size:2rem;margin-bottom:1rem;">⏳</div><p style="font-family:var(--mono);font-size:.8rem;">Loading courses…</p></div>
+  <div class="empty-state" id="no-results" style="display:none;">
+    <div class="big">🔍</div>
+    <h3>No courses found</h3>
+    <p>Try adjusting your search or filter</p>
   </div>
+  <div class="courses-grid" id="courses-grid"></div>
 </section>
 
 <div class="modal-overlay" id="login-modal">
@@ -287,7 +287,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 5%;height:68px;dis
 <script>
 window.PAYSTACK_PUBLIC_KEY = "pk_test_f5cdf0d0364d836089bf708636c85614317cb583";
 
-let allCourses = [];
+window.allCourses = [];
 let activeFilter='all', activeSort='popular', activeSearch='';
 
 const LANG_COLORS = {Python:'#3776AB',JavaScript:'#F7DF1E',Rust:'#f74c00',Go:'#00ADD8',Java:'#f89820','C++':'#044f8d',Kotlin:'#7F52FF',PHP:'#8892BF',Swift:'#F05138',Solidity:'#363636',HTML:'#E34F26',CSS:'#264de4'};
@@ -295,7 +295,7 @@ function langTagClass(lang){ return {JavaScript:'tag-js',HTML:'tag-html',CSS:'ta
 function bannerClass(lang){ return {HTML:'html-bg',CSS:'css-bg',JavaScript:'js-bg'}[lang]||'other-bg'; }
 
 function renderCourses(){
-  let list=[...allCourses];
+  let list=[...window.allCourses];
   if(activeFilter!=='all') list=list.filter(c=>c.lang===activeFilter);
   if(activeSearch) list=list.filter(c=>c.title.toLowerCase().includes(activeSearch)||c.lang.toLowerCase().includes(activeSearch));
   if(activeSort==='popular') list.sort((a,b)=>b.students-a.students);
@@ -304,16 +304,16 @@ function renderCourses(){
   else if(activeSort==='price-high') list.sort((a,b)=>b.price-a.price);
   const grid=document.getElementById('courses-grid');
   const noRes=document.getElementById('no-results');
+  noRes.style.display='none';
   grid.querySelectorAll('.course-card').forEach(c=>c.remove());
   document.getElementById('count-num').textContent=list.length;
   if(list.length===0){ noRes.style.display='block'; return; }
-  noRes.style.display='none';
   list.forEach((c,i)=>{
     const card=document.createElement('div');
     card.className='course-card';
     card.style.animationDelay=(i*0.07)+'s';
     const isFree = c.price === 0 || c.isFree === true;
-    card.innerHTML=`<div class="card-banner ${bannerClass(c.lang)}"><div class="card-banner-icon">${c.icon}</div><div class="card-banner-tag ${langTagClass(c.lang)}">${c.lang}</div><div class="card-banner-rating">★ ${c.rating}</div></div><div class="card-body"><div class="card-tutor-row"><div class="card-tutor-av">${c.tutorInitials}</div><div class="card-tutor-name">${c.tutor}</div></div><div class="card-title">${c.title}</div><div class="card-desc">${c.desc.slice(0,100)}…</div><div class="card-meta"><div class="card-meta-item">📚 <strong>${c.lessons}</strong> Lessons</div><div class="card-meta-item">🎓 <strong>${c.students}</strong> Students</div></div><div class="card-footer"><div class="card-price">${isFree?'FREE':`<span class="naira">₦</span>${c.price.toLocaleString()}`}</div><div style="display:flex;gap:.5rem;"><button class="preview-btn" onclick="openDetail('${c.id}')">Preview</button><button class="enroll-btn" onclick="openLoginGate('${c.id}')">Enroll →</button></div></div></div>`;
+    card.innerHTML=`<div class="card-banner ${bannerClass(c.lang)}"><div class="card-banner-icon">${c.icon}</div><div class="card-banner-tag ${langTagClass(c.lang)}">${c.lang}</div><div class="card-banner-rating">★ ${c.rating}</div></div><div class="card-body"><div class="card-tutor-row"><div class="card-tutor-av">${c.tutorInitials}</div><div class="card-tutor-name">${c.tutor}</div></div><div class="card-title">${c.title}</div><div class="card-desc">${(c.desc||"").slice(0,100)}…</div><div class="card-meta"><div class="card-meta-item">📚 <strong>${c.lessons}</strong> Lessons</div><div class="card-meta-item">🎓 <strong>${c.students}</strong> Students</div></div><div class="card-footer"><div class="card-price">${isFree?'FREE':`<span class="naira">₦</span>${c.price.toLocaleString()}`}</div><div style="display:flex;gap:.5rem;"><button class="preview-btn" onclick="openDetail('${c.id}')">Preview</button><button class="enroll-btn" onclick="openLoginGate('${c.id}')">Enroll →</button></div></div></div>`;
     grid.appendChild(card);
   });
 }
@@ -323,7 +323,7 @@ function filterCourses(){ activeSearch=document.getElementById('search-input').v
 function sortCourses(v){ activeSort=v; renderCourses(); }
 
 function openLoginGate(id){
-  const c=allCourses.find(x=>String(x.id)===String(id));
+  const c=window.allCourses.find(x=>String(x.id)===String(id));
   if(!c) return;
   document.getElementById('modal-icon').textContent=c.icon;
   document.getElementById('modal-course-title').textContent=c.title;
@@ -331,7 +331,7 @@ function openLoginGate(id){
   document.getElementById('login-modal').classList.add('open');
 }
 function openDetail(id){
-  const c=allCourses.find(x=>String(x.id)===String(id));
+  const c=window.allCourses.find(x=>String(x.id)===String(id));
   if(!c) return;
   const isFree = c.price === 0 || c.isFree === true;
   document.getElementById('detail-content').innerHTML=`
@@ -353,49 +353,85 @@ document.addEventListener('click',e=>{ const nav=document.getElementById('mobile
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, query, where, orderBy }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const app = initializeApp({ apiKey:"AIzaSyATtx9-URlB2-ZKc_4eXIlr8lQxg_dlJAQ", authDomain:"frnt-coda.firebaseapp.com", projectId:"frnt-coda", storageBucket:"frnt-coda.firebasestorage.app", messagingSenderId:"564512970305", appId:"1:564512970305:web:d7fd66bdcf6b8268d4d8c0" });
-const db = getFirestore(app);
+const firebaseConfig = {
+  apiKey:            "AIzaSyATtx9-URlB2-ZKc_4eXIlr8lQxg_dlJAQ",
+  authDomain:        "frnt-coda.firebaseapp.com",
+  projectId:         "frnt-coda",
+  storageBucket:     "frnt-coda.firebasestorage.app",
+  messagingSenderId: "564512970305",
+  appId:             "1:564512970305:web:d7fd66bdcf6b8268d4d8c0"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
 
 async function loadLiveCourses() {
-  const grid = document.getElementById('courses-grid');
-  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem;color:var(--gray);font-family:var(--mono);">Loading courses…</div>';
   try {
     const snap = await getDocs(query(collection(db, "courses"), where("status", "==", "live")));
-    if (snap.empty) {
-      document.getElementById('count-num').textContent = '0';
-      document.getElementById('no-results').style.display = 'block';
-      grid.querySelectorAll('.course-card, div').forEach(c => c.remove());
-      return;
-    }
-    const LANG_ICONS = {Python:"🐍",JavaScript:"⚡",Rust:"🦀",Go:"🐹",Java:"☕","C++":"⚙️",Kotlin:"🎯",PHP:"🐘",Swift:"🦅",Solidity:"🔷",HTML:"🌐",CSS:"🎨"};
+
+if (snap.empty) {
+  window.allCourses = [];
+  document.getElementById("loading-state").style.display="none";
+  renderCourses();
+  return;
+}
+
     allCourses = snap.docs.map(d => {
       const data = d.data();
       const lang = data.language || "HTML";
-      const lessons = (data.lessons||[]).filter(l=>l.type==="Lesson"||!l.type).length;
-      const assignments = (data.lessons||[]).filter(l=>l.type==="Assignment").length;
+      const lessonItems   = data.lessons || [];
+      const lessonCount   = lessonItems.filter(l => l.type === "Lesson" || !l.type).length;
+      const assignCount   = lessonItems.filter(l => l.type === "Assignment").length;
+      const durationWeeks = Math.max(1, Math.round(lessonCount / 3));
+
       return {
-        id: d.id, title: data.title || "Untitled", lang,
-        icon: LANG_ICONS[lang] || "💻",
-        tutor: data.tutorName || "frNtcOda Instructor",
-        tutorInitials: data.tutorInitials || "FI",
-        price: data.price || 0, isFree: data.isFree || data.price === 0,
-        rating: data.rating || 0, students: data.studentsCount || 0,
-        lessons, assignments,
-        desc: data.description || "",
-        newest: data.createdAt ? (Date.now() - data.createdAt.toMillis() < 30*24*60*60*1000) : false,
+        id:             d.id,
+        title:          data.title || "Untitled",
+        lang:           lang,
+        icon:           lang === "HTML" ? "🌐" : lang === "CSS" ? "🎨" : "⚡",
+        tutor:          data.tutorName || "frNtcOda Instructor",
+        tutorInitials:  data.tutorInitials || "FI",
+        tutorColor:     "av-blue",
+        price:          data.price || 0,
+        certFee:        lang === "JavaScript" ? 3500 : 2500,
+        rating:         data.rating || 0,
+        students:       data.studentsCount || 0,
+        lessons:        lessonCount,
+        assignments:    assignCount,
+        duration:       durationWeeks + (durationWeeks === 1 ? " week" : " weeks"),
+        desc:           data.description || "",
+        outline:        lessonItems.map(l => ({
+          icon: l.type === "Assignment" ? "📝" : l.type === "Final Test" || l.type === "Test" ? "🧪" : "📖",
+          name: l.name || l.title || "Lesson",
+          type: l.type || "Lesson",
+        })),
+        reviews:        [],
+        featured:       true,
+        newest:         data.createdAt ? (Date.now() - data.createdAt.toMillis() < 30*24*60*60*1000) : false,
       };
     });
-    document.getElementById('total-courses-stat').textContent = allCourses.length;
-    const totalStudents = allCourses.reduce((s,c)=>s+c.students,0);
-    document.querySelector('[data-stat="students"]').innerHTML = (totalStudents||0)+'<span>+</span>';
-    const avgRating = allCourses.filter(c=>c.rating>0).reduce((s,c,_,arr)=>s+c.rating/arr.length,0);
-    document.getElementById('avg-rating-stat').innerHTML = (avgRating>0?avgRating.toFixed(1):'—')+'<span>★</span>';
+
+    // Update hero stats
+    const totalCoursesEl = document.getElementById('total-courses-stat');
+    if (totalCoursesEl) totalCoursesEl.textContent = allCourses.length;
+
+    const totalStudents = allCourses.reduce((sum, c) => sum + c.students, 0);
+    const studentsEl = document.querySelector('[data-stat="students"]');
+    if (studentsEl) studentsEl.innerHTML = (totalStudents || 0) + '<span>+</span>';
+
+    const avgRating = allCourses.filter(c => c.rating > 0).reduce((sum, c, _, arr) => sum + c.rating / arr.length, 0);
+    const ratingEl = document.getElementById('avg-rating-stat');
+    if (ratingEl) ratingEl.innerHTML = (avgRating > 0 ? avgRating.toFixed(1) : '—') + '<span>★</span>';
+document.getElementById("loading-state").style.display="none";
     renderCourses();
+
   } catch(e) {
     console.error("Failed to load courses:", e);
-    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="big">⚠️</div><h3>Couldn't load courses</h3><p>Check your connection and refresh</p><button class="btn-primary" onclick="location.reload()" style="padding:.5rem 1.5rem;border-radius:6px;border:none;background:var(--red);color:white;cursor:pointer;">Retry</button></div>`;
+    document.getElementById('loading-state').style.display='none';
+    document.getElementById('no-results').style.display = 'block';
   }
 }
 

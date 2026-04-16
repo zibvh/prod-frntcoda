@@ -336,10 +336,11 @@ body{font-family:var(--body);background:var(--dark);color:var(--white);display:f
   background:linear-gradient(90deg,transparent,rgba(201,168,76,.5),transparent);
 }
 .cert-recipient-name{
-  font-family:var(--display);font-size:2rem;font-weight:800;
-  letter-spacing:-.03em;color:var(--white);line-height:1.1;
+  font-family:var(--display);font-size:clamp(1.1rem,5vw,2rem);font-weight:800;
+  letter-spacing:-.02em;color:var(--white);line-height:1.15;
   text-align:center;margin-bottom:.5rem;
   text-shadow:0 0 30px rgba(43,107,255,.4);
+  word-break:break-word;overflow-wrap:break-word;
 }
 .cert-completion-text{
   font-family:var(--body);font-size:.82rem;color:rgba(255,255,255,.65);
@@ -362,6 +363,15 @@ body{font-family:var(--body);background:var(--dark);color:var(--white);display:f
   display:flex;gap:.5rem;padding:.85rem 1.5rem;
   border-top:1px solid rgba(255,255,255,.06);
   background:rgba(0,0,0,.2);
+}
+/* Mobile cert fixes */
+@media(max-width:480px){
+  .cert-body{padding:1.25rem 1rem 1rem;}
+  .cert-actions{padding:.65rem 1rem;flex-wrap:wrap;}
+  .cert-meta-lbl{font-size:.42rem;}
+  .cert-meta-val{font-size:.6rem;}
+  .cert-id-col .cert-meta-val{font-size:.52rem;word-break:break-all;}
+  .cert-seal{width:40px;height:40px;font-size:1.1rem;}
 }
 /* legacy compat */
 .cert-icon{font-size:2.5rem;margin-bottom:.75rem;}
@@ -778,6 +788,15 @@ body{font-family:var(--body);background:var(--dark);color:var(--white);display:f
 <script>
   window.PAYSTACK_PUBLIC_KEY = "pk_test_f5cdf0d0364d836089bf708636c85614317cb583";
   console.log('[frNtcOda] Paystack key loaded. Swap for your live key before going to production.');
+  // Preload Paystack script eagerly so openIframe() fires in the same
+  // user-gesture tick (no async gap = no popup blocker)
+  (function() {
+    if (window.PaystackPop) return;
+    var s = document.createElement('script');
+    s.src = 'https://js.paystack.co/v1/inline.js';
+    s.async = true;
+    document.head.appendChild(s);
+  })();
 </script>
 <script type="module">
 
@@ -811,6 +830,9 @@ let activeCourseId = null, activeLessons = [], activeLessonIdx = 0;
 let testAnswers = {}, testData = null;
 let assignData = null, assignAnswers = {};  // assignment MCQ engine
 let examData = null, examAnswers = {};      // exam engine
+// Expose on window so inline oninput/onclick handlers (which run in global scope) can access them
+Object.defineProperty(window, 'examAnswers', { get: () => examAnswers, set: v => { examAnswers = v; } });
+Object.defineProperty(window, 'examData',    { get: () => examData,    set: v => { examData    = v; } });
 
 // ── PANEL NAVIGATION ─────────────────────────────────────────────
 window.showPanel = function(panelId, data) {
@@ -915,37 +937,47 @@ async function loadHomeData() {
 
 async function renderEnrollmentCards(container, enrollmentList) {
   const LANG_ICONS_S = {Python:"🐍",JavaScript:"⚡",TypeScript:"🔷",Rust:"🦀",Go:"🐹",Java:"☕","C++":"⚙️",Kotlin:"🎯",PHP:"🐘",Swift:"🦅",Solidity:"🔷",HTML:"🌐",CSS:"🎨"};
-  const langIcon = l => LANG_ICONS_S[l] || "💻";
   const langClass = l => l==='HTML'?'lang-html':l==='CSS'?'lang-css':l==='JavaScript'?'lang-js':'lang-other';
   const fillClass = p => p>=80?'p-complete':p>=40?'p-mid':'p-early';
 
-  const cards = await Promise.all(enrollmentList.map(async en => {
-    const cSnap = await getDoc(doc(db,'courses',en.courseId));
-    if (!cSnap.exists()) return '';
-    const c = cSnap.data();
-    const total = (c.lessons||[]).length;
-    const done = (en.completedLessons||[]).length;
-    const pct = total > 0 ? Math.round((done/total)*100) : en.progress || 0;
-    const lang = c.language || 'HTML';
-    return `<div class="cpc">
-      <div class="cpc-header">
-        <span class="cpc-lang ${langClass(lang)}">${lang}</span>
-        <span style="font-family:var(--mono);font-size:.6rem;color:var(--gray);">${pct}% done</span>
-      </div>
-      <div class="cpc-body">
-        <div class="cpc-title">${c.title}</div>
-        <div class="cpc-tutor">${c.tutorName || 'frNtcOda Instructor'}</div>
-        <div class="progress-label"><span>${done} of ${total} lessons</span></div>
-        <div class="progress-track"><div class="progress-fill ${fillClass(pct)}" style="width:${pct}%"></div></div>
-      </div>
-      <div class="cpc-footer">
-        ${pct>=100
-          ? `<button class="btn btn-red btn-sm btn-full" onclick="checkCertificate('${en.courseId}','${c.title.replace(/'/g,"\\'")}',${c.certFee||2500})">Get Certificate 🎓</button>`
-          : `<button class="btn btn-red btn-sm" onclick="showPanel('lessons',{courseId:'${en.courseId}',enrollmentId:'${en.id}'})">Continue →</button>`}
-      </div>
-    </div>`;
-  }));
-  container.innerHTML = cards.join('');
+  try {
+    const cards = await Promise.all(enrollmentList.map(async en => {
+      try {
+        const cSnap = await getDoc(doc(db,'courses',en.courseId));
+        if (!cSnap.exists()) return '';
+        const c = cSnap.data();
+        const total = (c.lessons||[]).length;
+        const done = (en.completedLessons||[]).length;
+        const pct = total > 0 ? Math.round((done/total)*100) : en.progress || 0;
+        const lang = c.language || 'HTML';
+        return `<div class="cpc">
+          <div class="cpc-header">
+            <span class="cpc-lang ${langClass(lang)}">${lang}</span>
+            <span style="font-family:var(--mono);font-size:.6rem;color:var(--gray);">${pct}% done</span>
+          </div>
+          <div class="cpc-body">
+            <div class="cpc-title">${c.title}</div>
+            <div class="cpc-tutor">${c.tutorName || 'frNtcOda Instructor'}</div>
+            <div class="progress-label"><span>${done} of ${total} lessons</span></div>
+            <div class="progress-track"><div class="progress-fill ${fillClass(pct)}" style="width:${pct}%"></div></div>
+          </div>
+          <div class="cpc-footer">
+            ${pct>=100
+              ? `<button class="btn btn-red btn-sm btn-full" onclick="checkCertificate('${en.courseId}','${c.title.replace(/'/g,"\'")}',${c.certFee||2500})">Get Certificate 🎓</button>`
+              : `<button class="btn btn-red btn-sm" onclick="showPanel('lessons',{courseId:'${en.courseId}',enrollmentId:'${en.id}'})">Continue →</button>`}
+          </div>
+        </div>`;
+      } catch(cardErr) {
+        console.error('renderEnrollmentCards card error:', cardErr);
+        return '';
+      }
+    }));
+    const html = cards.filter(Boolean).join('');
+    container.innerHTML = html || `<div class="empty-state"><div class="emoji">📚</div><p>No enrolled courses yet</p><button class="btn btn-blue" onclick="showPanel('browse')">Browse Courses</button></div>`;
+  } catch(e) {
+    console.error('renderEnrollmentCards error:', e);
+    container.innerHTML = `<div class="empty-state"><div class="emoji">⚠️</div><p>Could not load courses. Please refresh.</p></div>`;
+  }
 }
 
 async function loadMyCourses() {
@@ -1192,16 +1224,7 @@ async function markRead(notifId, el) {
 
 // ── COURSE LESSON VIEWER ────────────────────────────────────────
 window.openCourse = async function(courseId, enrollmentId) {
-  showPanel('lessons');
   activeCourseId = courseId;
-
-  // Show loading state while fetching
-  document.getElementById('lv-course-title').textContent = 'Loading…';
-  document.getElementById('lv-progress-txt').textContent = '—';
-  document.getElementById('lv-progress-fill').style.width = '0%';
-  document.getElementById('lv-lesson-list').innerHTML = '';
-  document.getElementById('lv-content-area').innerHTML =
-    '<div style="text-align:center;padding:2.5rem 1rem;font-family:var(--mono);font-size:.75rem;color:var(--gray);">Loading course…<br><div class="spin" style="margin:.75rem auto 0;width:22px;height:22px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--blue-glow);border-radius:50%;animation:spin .7s linear infinite;"></div></div>';
 
   try {
     const [cSnap, enSnap] = await Promise.all([
@@ -1211,6 +1234,24 @@ window.openCourse = async function(courseId, enrollmentId) {
     if (!cSnap.exists()) { showToast('Course not found','error'); showPanel('mycourses'); return; }
     const course = cSnap.data();
     const enrollment = enSnap.exists() ? enSnap.data() : {};
+
+    // PAYMENT GATE: block access if paid course and enrollment not marked paid
+    const coursePrice = course.price || 0;
+    const enrollmentPaid = enrollment.paid === true;
+    if (coursePrice > 0 && !enrollmentPaid) {
+      showToast('Complete payment to access this course 🔒', 'error');
+      enrollCourse(courseId, course.title, coursePrice);
+      return;
+    }
+
+    // Payment cleared — now switch to lessons panel and show loading state
+    showPanel('lessons');
+    document.getElementById('lv-course-title').textContent = 'Loading…';
+    document.getElementById('lv-progress-txt').textContent = '—';
+    document.getElementById('lv-progress-fill').style.width = '0%';
+    document.getElementById('lv-lesson-list').innerHTML = '';
+    document.getElementById('lv-content-area').innerHTML =
+      '<div style="text-align:center;padding:2.5rem 1rem;font-family:var(--mono);font-size:.75rem;color:var(--gray);">Loading course…<br><div class="spin" style="margin:.75rem auto 0;width:22px;height:22px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--blue-glow);border-radius:50%;animation:spin .7s linear infinite;"></div></div>';
 
     activeLessons = course.lessons || [];
     const completedIds = new Set(enrollment.completedLessons || []);
@@ -1718,8 +1759,8 @@ window.submitExam = async function() {
       try {
         if (window.emailjs) {
           await window.emailjs.send(
-            window.EMAILJS_SERVICE_ID  || 'YOUR_SERVICE_ID',
-            window.EMAILJS_TEMPLATE_ID || 'YOUR_TEMPLATE_ID',
+            window.EMAILJS_SERVICE_ID  || 'frNtcOda',
+            window.EMAILJS_TEMPLATE_ID || 'submissions',
             {
               to_email:     lesson.tutorEmail,
               student_name: currentProfile.fullName || 'A student',
@@ -1902,14 +1943,10 @@ async function enrollFree(courseId, courseName) {
     if (already) { showToast('Already enrolled!','success'); return; }
     const newEnrollment = {
       studentId: currentUser.uid, courseId, status:'active',
+      paid: true, // free courses are implicitly paid
       progress:0, completedLessons:[], enrolledAt:serverTimestamp()
     };
     const ref = await addDoc(collection(db,'enrollments'), newEnrollment);
-    // Increment studentsCount using a fresh read to avoid races
-    const cSnap = await getDoc(doc(db,'courses',courseId));
-    if (cSnap.exists()) {
-      await updateDoc(doc(db,'courses',courseId), { studentsCount: (cSnap.data().studentsCount||0)+1 });
-    }
     showToast(`Enrolled in ${courseName} 🎉`,'success');
     // Update in-memory list so UI refreshes instantly
     enrollments = [...enrollments, { id: ref.id, courseId, status:'active', progress:0, completedLessons:[] }];
@@ -1926,13 +1963,18 @@ window.closePayModal = function() {
 };
 
 window.payEnroll = async function(courseId, courseName, price) {
-  closePayModal();
   const ctx = window._payContext || {};
   const tutorPay = ctx.tutorPay || {};
   const txRef = `frntcoda-enroll-${courseId}-${Date.now()}`;
   const customer = { email: currentProfile.email||currentUser.email, name: currentProfile.fullName||'Student' };
 
-  await loadPaystack();
+  try {
+    await loadPaystack();
+  } catch(e) {
+    showToast('Payment gateway failed to load. Check your connection.', 'error');
+    return;
+  }
+  closePayModal();
 
   const psConfig = {
     key: window.PAYSTACK_PUBLIC_KEY || 'pk_test_f5cdf0d0364d836089bf708636c85614317cb583',
@@ -1940,15 +1982,23 @@ window.payEnroll = async function(courseId, courseName, price) {
     amount: price * 100,
     currency: 'NGN',
     ref: txRef,
+    label: 'frNtcOda Course Enrollment',
     metadata: {
       courseId, courseName,
       studentId: currentUser.uid,
       custom_fields: [{ display_name: 'Course', variable_name: 'course', value: courseName }]
     },
     callback: function(res) {
+      // Plain function wrapper — Paystack v1 rejects async callbacks
       (async function() {
         if (res.status === 'success') {
           await enrollFree(courseId, courseName);
+          // Stamp the enrollment as paid so openCourse can verify payment
+          const newEnrollment = enrollments.find(e => e.courseId === courseId && e.status === 'active');
+          if (newEnrollment && newEnrollment.id) {
+            await updateDoc(doc(db,'enrollments', newEnrollment.id), { paid: true, paystackRef: res.reference });
+            newEnrollment.paid = true;
+          }
           await addDoc(collection(db,'payments'),{
             studentId: currentUser.uid,
             tutorId: tutorPay.uid || null,
@@ -1961,7 +2011,9 @@ window.payEnroll = async function(courseId, courseName, price) {
         }
       })();
     },
-    onClose: function() {}
+    onClose: function() {
+      showToast('Payment cancelled. You have not been enrolled.', '');
+    }
   };
 
   if (tutorPay.paystackSubaccountCode) {
@@ -1970,7 +2022,13 @@ window.payEnroll = async function(courseId, courseName, price) {
     psConfig.transaction_charge = Math.floor(price * 0.07 * 100);
   }
 
-  const handler = window.PaystackPop.setup(psConfig);
+  let handler;
+  try {
+    handler = window.PaystackPop.setup(psConfig);
+  } catch(setupErr) {
+    showToast('Payment setup failed: ' + setupErr.message, 'error');
+    return;
+  }
   handler.openIframe();
 };
 
@@ -1996,7 +2054,6 @@ window.checkCertificate = async function(courseId, courseName, certFee) {
 // payCert is called from the locked cert overlay — pays the fee, then marks
 // the existing cert as paid:true / locked:false in Firestore.
 window.payCert = async function(courseId, courseName, certFee) {
-  closePayModal();
   const courseSnap = await getDoc(doc(db,'courses',courseId));
   const tutorId = courseSnap.exists() ? courseSnap.data().tutorId : null;
   let tutorPay = {};
@@ -2005,13 +2062,20 @@ window.payCert = async function(courseId, courseName, certFee) {
   const txRef = `frntcoda-cert-${courseId}-${Date.now()}`;
   const customer = { email: currentProfile.email||currentUser.email, name: currentProfile.fullName||'Student' };
 
-  await loadPaystack();
+  try {
+    await loadPaystack();
+  } catch(e) {
+    showToast('Payment gateway failed to load. Check your connection.', 'error');
+    return;
+  }
+  closePayModal();
   const psConfig = {
     key: window.PAYSTACK_PUBLIC_KEY || 'pk_test_f5cdf0d0364d836089bf708636c85614317cb583',
     email: customer.email,
     amount: certFee * 100,
     currency: 'NGN',
     ref: txRef,
+    label: 'frNtcOda Certificate Unlock',
     callback: function(res) {
       (async function() {
         if (res.status === 'success') {
@@ -2019,14 +2083,22 @@ window.payCert = async function(courseId, courseName, certFee) {
         }
       })();
     },
-    onClose: function() {}
+    onClose: function() {
+      showToast('Payment cancelled. Certificate not unlocked.', '');
+    }
   };
   if (tutorPay.paystackSubaccountCode) {
     psConfig.subaccount = tutorPay.paystackSubaccountCode;
     psConfig.bearer = 'account';
     psConfig.transaction_charge = Math.floor(certFee * 0.07 * 100);
   }
-  const handler = window.PaystackPop.setup(psConfig);
+  let handler;
+  try {
+    handler = window.PaystackPop.setup(psConfig);
+  } catch(setupErr) {
+    showToast('Payment setup failed: ' + setupErr.message, 'error');
+    return;
+  }
   handler.openIframe();
 };
 
@@ -2165,10 +2237,12 @@ function loadFlw() {
 }
 
 function loadPaystack() {
-  return new Promise(res => {
-    if (window.PaystackPop) { res(); return; }
+  return new Promise((resolve, reject) => {
+    if (window.PaystackPop) { resolve(); return; }
     const s = document.createElement('script'); s.src = 'https://js.paystack.co/v1/inline.js';
-    s.onload = res; document.body.appendChild(s);
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Paystack script failed to load. Check your connection.'));
+    document.body.appendChild(s);
   });
 }
 
@@ -2201,11 +2275,11 @@ document.getElementById('pay-modal').addEventListener('click', function(e) {
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
   (function(){
-    var PK = "YOUR_EMAILJS_PUBLIC_KEY";
-    var SID = "YOUR_SERVICE_ID";
-    var TID = "YOUR_TEMPLATE_ID";
-    console.log('[frNtcOda] EmailJS: set YOUR_EMAILJS_PUBLIC_KEY, YOUR_SERVICE_ID, YOUR_TEMPLATE_ID to enable exam email notifications.');
-    if (PK && PK !== "YOUR_EMAILJS_PUBLIC_KEY") {
+    var PK = "in-7Jzdfq8gQUWxex";
+    var SID = "frNtcOda";
+    var TID = "submissions";
+    console.log('emailjs is set')
+    if (PK && PK !== "in-7Jzdfq8gQUWxex") {
       window.emailjs.init({ publicKey: PK });
     }
     window.EMAILJS_SERVICE_ID  = SID;
